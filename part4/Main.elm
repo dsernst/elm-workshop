@@ -69,7 +69,7 @@ view address model =
         ]
     , input
         [ class "search-query"
-          -- TODO when we receive onInput, set the query in the model
+        , onInput address SetQuery
         , defaultValue model.query
         ]
         []
@@ -112,13 +112,12 @@ type Action
 
 update : Action -> Model -> Model
 update action model =
-  -- TODO if we get a SetQuery action, use it to set the model's query field,
   case action of
     DeleteById id ->
       { model | results = List.filter (\result -> result.id /= id) model.results }
 
-    _ ->
-      model
+    SetQuery string ->
+      { model | query = string }
 
 
 main =
