@@ -22,7 +22,7 @@ type alias ResultId =
   Int
 
 
-model : { query : String, results : List { id : Int, name : String, stars : Int } }
+model : Model
 model =
   { query = "tutorial"
   , results =
@@ -50,7 +50,7 @@ model =
   }
 
 
-view : model -> Html
+view : Model -> Html
 view model =
   div
     [ class "content" ]
@@ -65,7 +65,7 @@ view model =
     ]
 
 
-viewSearchResult : { b | stars : a, name : String } -> Html
+viewSearchResult : SearchResult -> Html
 viewSearchResult result =
   li
     []
