@@ -61,7 +61,7 @@ view model =
         ]
     , ul
         [ class "results" ]
-        [{- TODO use model.results and viewSearchResults to display results -}]
+        (List.map viewSearchResult model.results)
     ]
 
 
