@@ -50,8 +50,7 @@ model =
   }
 
 
-{-| TODO add a type annotation to this function
--}
+view : model -> Html
 view model =
   div
     [ class "content" ]
