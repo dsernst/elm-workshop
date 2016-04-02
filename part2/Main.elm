@@ -65,8 +65,7 @@ view model =
     ]
 
 
-{-| TODO add a type annotation to this function
--}
+viewSearchResult : { b | stars : a, name : String } -> Html
 viewSearchResult result =
   li
     []
