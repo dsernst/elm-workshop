@@ -84,7 +84,8 @@ viewSearchResult address result =
 
 
 type alias Action =
-  { -- TODO implement this type alias
+  { actionType : String
+  , id : ResultId
   }
 
 
