@@ -78,7 +78,6 @@ viewSearchResult result =
     ]
 
 
-{-| TODO add a type annotation to this function
--}
+main : Html
 main =
   view model
