@@ -98,8 +98,9 @@ viewSearchResult address result =
         [ href ("https://github.com/" ++ result.name), target "_blank" ]
         [ text result.name ]
     , button
-        -- TODO add an onClick handler that sends a DeleteById action
-        [ class "hide-result" ]
+        [ class "hide-result"
+        , onClick address (DeleteById result.id)
+        ]
         [ text "X" ]
     ]
 
@@ -112,8 +113,12 @@ type Action
 update : Action -> Model -> Model
 update action model =
   -- TODO if we get a SetQuery action, use it to set the model's query field,
-  -- and if we get a DeleteById action, delete the appropriate result
-  model
+  case action of
+    DeleteById id ->
+      { model | results = List.filter (\result -> result.id /= id) model.results }
+
+    _ ->
+      model
 
 
 main =
