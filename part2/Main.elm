@@ -22,8 +22,7 @@ type alias ResultId =
   Int
 
 
-{-| TODO add a type annotation to this function
--}
+model : { query : String, results : List { id : Int, name : String, stars : Int } }
 model =
   { query = "tutorial"
   , results =
