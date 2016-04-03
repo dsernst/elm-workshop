@@ -3,7 +3,6 @@ module ElmHub (..) where
 import Html exposing (..)
 import Html.Attributes exposing (class, target, href, property)
 import Html.Events exposing (..)
-import Http
 import Auth
 import Task exposing (Task)
 import Effects exposing (Effects)
@@ -122,10 +121,12 @@ viewSearchResults address results =
   []
 
 
+onInput : Address a -> (String -> a) -> Attribute
 onInput address wrap =
   on "input" targetValue (\val -> Signal.message address (wrap val))
 
 
+defaultValue : String -> Attribute
 defaultValue str =
   property "defaultValue" (Json.Encode.string str)
 
