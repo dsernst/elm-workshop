@@ -15,7 +15,7 @@ all =
               """{ "items": [] }"""
            in
             assertEqual
-              ({- TODO: what goes here? -})
+              (Ok [])
               (decodeString responseDecoder emptyResponse)
     , test "they can decode responses with results in them"
         <| let
