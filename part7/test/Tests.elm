@@ -37,11 +37,12 @@ all =
               """{ "pizza": [] }"""
 
             isErrorResult result =
-              -- TODO return True if the given Result is an Err of some sort,
-              -- and False if it is an Ok of some sort.
-              --
-              -- Result docs: http://package.elm-lang.org/packages/elm-lang/core/3.0.0/Result
-              False
+              case result of
+                Err _ ->
+                  True
+
+                Ok _ ->
+                  False
            in
             assertEqual
               True
