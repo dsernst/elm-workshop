@@ -161,14 +161,15 @@ update action model =
       ( { model | results = results }, Effects.none )
 
     HandleSearchError error ->
-      -- TODO if decoding failed, store the message in model.errorMessage
-      --
-      -- Hint 1: look for "decode" in the documentation for this union type:
-      -- http://package.elm-lang.org/packages/evancz/elm-http/3.0.0/Http#Error
-      --
-      -- Hint 2: to check if this is working, break responseDecoder
-      -- by changing "stargazers_count" to "description"
-      ( model, Effects.none )
+      -- If decoding failed, store the message in model.errorMessage
+      case error of
+        -- To check this, break responseDecoder by changing "stargazers_count" to "description"
+        Http.UnexpectedPayload errorMessage ->
+          ( { model | errorMessage = Just errorMessage }, Effects.none )
+
+        -- To check this, change the GitHub api url at the top
+        _ ->
+          ( { model | errorMessage = Just "Error communicating with GitHub" }, Effects.none )
 
     SetQuery query ->
       ( { model | query = query }, Effects.none )
