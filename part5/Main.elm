@@ -52,7 +52,7 @@ sampleJson =
         "pushed_at": "2012-01-01T00:37:02Z",
         "homepage": "",
         "size": 524,
-        "stargazers_count": 1,
+        "stargazers_count": 3,
         "watchers_count": 1,
         "language": "Assembly",
         "forks_count": 0,
@@ -76,9 +76,9 @@ searchResultDecoder =
   -- See https://developer.github.com/v3/search/#example
   -- TODO replace these `hardcoded` with calls to `require`
   decode SearchResult
-    |> hardcoded 0
-    |> hardcoded ""
-    |> hardcoded 0
+    |> required "id" Json.Decode.int
+    |> required "full_name" Json.Decode.string
+    |> required "stargazers_count" Json.Decode.int
 
 
 type alias Model =
