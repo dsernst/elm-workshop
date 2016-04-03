@@ -1,21 +1,21 @@
 module ElmHub (..) where
 
+import Auth
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes exposing (class, target, href, property)
 import Html.Events exposing (..)
 import Http
-import Auth
 import Task exposing (Task)
 import Effects exposing (Effects)
 import Json.Decode exposing (Decoder, (:=))
+import Json.Decode.Pipeline exposing (..)
 import Json.Encode
 import Signal exposing (Address)
 
 
-searchFeed : Address String -> String -> Task x Action
-searchFeed address query =
+searchFeed : String -> Effects Action
+searchFeed query =
   let
-    -- See https://developer.github.com/v3/search/#example for how to customize!
     url =
       "https://api.github.com/search/repositories?access_token="
         ++ Auth.token
@@ -23,13 +23,13 @@ searchFeed address query =
         ++ query
         ++ "+language:elm&sort=stars&order=desc"
 
-    -- These only talk to JavaScript ports now. They don't
-    -- actually do any actions themselves.
     task =
-      Signal.send address query
-        |> Task.map (\_ -> DoNothing)
+      performAction
+        (\response -> HandleSearchResponse response)
+        (\error -> HandleSearchError error)
+        (Http.get responseDecoder url)
   in
-    Task.onError task (\_ -> Task.succeed DoNothing)
+    Effects.task task
 
 
 responseDecoder : Decoder (List SearchResult)
@@ -39,16 +39,40 @@ responseDecoder =
 
 searchResultDecoder : Decoder SearchResult
 searchResultDecoder =
-  Json.Decode.object3
-    SearchResult
-    ("id" := Json.Decode.int)
-    ("full_name" := Json.Decode.string)
-    ("stargazers_count" := Json.Decode.int)
+  decode SearchResult
+    |> required "id" Json.Decode.int
+    |> required "full_name" Json.Decode.string
+    |> required "stargazers_count" Json.Decode.int
+
+
+{-| Note: this will be a standard function in the next release of Elm.
+
+Example:
+
+
+type Action =
+  HandleResponse String | HandleError Http.Error
+
+
+performAction
+  (\responseString -> HandleResponse responseString)
+  (\httpError -> HandleError httpError)
+  (Http.getString "https://google.com?q=something")
+
+-}
+performAction : (a -> b) -> (y -> b) -> Task y a -> Task x b
+performAction successToAction errorToAction task =
+  let
+    successTask =
+      Task.map successToAction task
+  in
+    Task.onError successTask (\err -> Task.succeed (errorToAction err))
 
 
 type alias Model =
   { query : String
   , results : List SearchResult
+  , errorMessage : Maybe String
   }
 
 
@@ -67,6 +91,7 @@ initialModel : Model
 initialModel =
   { query = "tutorial"
   , results = []
+  , errorMessage = Nothing
   }
 
 
@@ -81,10 +106,21 @@ view address model =
         ]
     , input [ class "search-query", onInput address SetQuery, defaultValue model.query ] []
     , button [ class "search-button", onClick address Search ] [ text "Search" ]
+    , viewErrorMessage model.errorMessage
     , ul
         [ class "results" ]
         (List.map (viewSearchResult address) model.results)
     ]
+
+
+viewErrorMessage : Maybe String -> Html
+viewErrorMessage errorMessage =
+  case errorMessage of
+    Just message ->
+      div [ class "error" ] [ text message ]
+
+    Nothing ->
+      text ""
 
 
 onInput address wrap =
@@ -113,25 +149,33 @@ type Action
   = Search
   | SetQuery String
   | DeleteById ResultId
-  | SetResults (List SearchResult)
-  | DoNothing
+  | HandleSearchResponse (List SearchResult)
+  | HandleSearchError Http.Error
 
 
-update : Address String -> Action -> Model -> ( Model, Effects Action )
-update searchAddress action model =
+update : Action -> Model -> ( Model, Effects Action )
+update action model =
   case action of
     Search ->
-      ( model, Effects.task (searchFeed searchAddress model.query) )
+      ( model, searchFeed model.query )
+
+    HandleSearchResponse results ->
+      ( { model | results = results }, Effects.none )
+
+    HandleSearchError error ->
+      let
+        errorMessage =
+          case error of
+            Http.UnexpectedPayload message ->
+              Just message
+
+            _ ->
+              Nothing
+      in
+        ( { model | errorMessage = errorMessage }, Effects.none )
 
     SetQuery query ->
       ( { model | query = query }, Effects.none )
-
-    SetResults results ->
-      let
-        newModel =
-          { model | results = results }
-      in
-        ( newModel, Effects.none )
 
     DeleteById idToHide ->
       let
@@ -143,6 +187,3 @@ update searchAddress action model =
           { model | results = newResults }
       in
         ( newModel, Effects.none )
-
-    DoNothing ->
-      ( model, Effects.none )

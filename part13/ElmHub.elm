@@ -1,7 +1,7 @@
 module ElmHub (..) where
 
 import Html exposing (..)
-import Html.Attributes exposing (class, target, href, property)
+import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (..)
 import Http
@@ -12,7 +12,7 @@ import Json.Decode exposing (Decoder, (:=))
 import Json.Encode
 import Signal exposing (Address)
 import Dict exposing (Dict)
-import SearchResult
+import SearchResult exposing (ResultId)
 
 
 searchFeed : String -> Task x Action
@@ -35,8 +35,7 @@ searchFeed query =
 
 responseDecoder : Decoder (List SearchResult.Model)
 responseDecoder =
-  -- TODO make use of SearchResult's decoder
-  Json.Decode.succeed []
+  "items" := Json.Decode.list SearchResult.decoder
 
 
 type alias Model =
@@ -69,12 +68,19 @@ view address model =
     ]
 
 
-viewSearchResults : Address Action -> Dict SearchResult.ResultId SearchResult.Model -> List Html
+viewSearchResults : Address Action -> Dict ResultId SearchResult.Model -> List Html
 viewSearchResults address results =
   results
     |> Dict.values
     |> List.sortBy (.stars >> negate)
-    |> List.map (\_ -> div [] [ text "TODO replace this line with view logic from SearchResult" ])
+    |> List.map (viewSearchResult address)
+
+
+viewSearchResult : Address Action -> SearchResult.Model -> Html
+viewSearchResult address result =
+  SearchResult.view
+    (Signal.forwardTo address (UpdateSearchResult result.id))
+    result
 
 
 onInput address wrap =
@@ -88,8 +94,8 @@ defaultValue str =
 type Action
   = Search
   | SetQuery String
-  | DeleteById SearchResult.ResultId
   | SetResults (List SearchResult.Model)
+  | UpdateSearchResult ResultId SearchResult.Action
 
 
 update : Action -> Model -> ( Model, Effects Action )
@@ -111,9 +117,23 @@ update action model =
       in
         ( { model | results = resultsById }, Effects.none )
 
-    DeleteById id ->
+    UpdateSearchResult id childAction ->
       let
-        newModel =
-          { model | results = Dict.remove id model.results }
+        updated =
+          model.results
+            |> Dict.get id
+            |> Maybe.map (SearchResult.update childAction)
       in
-        ( newModel, Effects.none )
+        case updated of
+          Nothing ->
+            ( model, Effects.none )
+
+          Just ( newChildModel, childEffects ) ->
+            let
+              effects =
+                Effects.map (UpdateSearchResult id) childEffects
+
+              newResults =
+                Dict.insert id newChildModel model.results
+            in
+              ( { model | results = newResults }, effects )

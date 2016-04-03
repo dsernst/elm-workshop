@@ -1,22 +1,21 @@
 module ElmHub (..) where
 
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes exposing (class, target, href, property)
 import Html.Events exposing (..)
-import Html.Lazy exposing (..)
 import Http
 import Auth
 import Task exposing (Task)
 import Effects exposing (Effects)
 import Json.Decode exposing (Decoder, (:=))
+import Json.Decode.Pipeline exposing (..)
 import Json.Encode
 import Signal exposing (Address)
 import Dict exposing (Dict)
-import SearchResult
 
 
-searchFeed : String -> Task x Action
-searchFeed query =
+searchFeed : Address String -> String -> Effects Action
+searchFeed address query =
   let
     -- See https://developer.github.com/v3/search/#example for how to customize!
     url =
@@ -26,29 +25,77 @@ searchFeed query =
         ++ query
         ++ "+language:elm&sort=stars&order=desc"
 
+    -- These only talk to JavaScript ports now. They never result in Actions
+    -- actually do any actions themselves.
     task =
-      Http.get responseDecoder url
-        |> Task.map SetResults
+      performAction
+        (\_ -> DoNothing)
+        (\_ -> DoNothing)
+        (Signal.send address query)
   in
-    Task.onError task (\_ -> Task.succeed (SetResults []))
+    Effects.task task
 
 
-responseDecoder : Decoder (List SearchResult.Model)
+responseDecoder : Decoder (List SearchResult)
 responseDecoder =
-  -- TODO make use of SearchResult's decoder
-  Json.Decode.succeed []
+  "items" := Json.Decode.list searchResultDecoder
+
+
+searchResultDecoder : Decoder SearchResult
+searchResultDecoder =
+  decode SearchResult
+    |> required "id" Json.Decode.int
+    |> required "full_name" Json.Decode.string
+    |> required "stargazers_count" Json.Decode.int
+
+
+{-| Note: this will be a standard function in the next release of Elm.
+
+Example:
+
+
+type Action =
+  HandleResponse String | HandleError Http.Error
+
+
+performAction
+  (\responseString -> HandleResponse responseString)
+  (\httpError -> HandleError httpError)
+  (Http.getString "https://google.com?q=something")
+
+-}
+performAction : (a -> b) -> (y -> b) -> Task y a -> Task x b
+performAction successToAction errorToAction task =
+  let
+    successTask =
+      Task.map successToAction task
+  in
+    Task.onError successTask (\err -> Task.succeed (errorToAction err))
 
 
 type alias Model =
   { query : String
-  , results : Dict SearchResult.ResultId SearchResult.Model
+  , results : Dict ResultId SearchResult
+  , errorMessage : Maybe String
   }
+
+
+type alias SearchResult =
+  { id : ResultId
+  , name : String
+  , stars : Int
+  }
+
+
+type alias ResultId =
+  Int
 
 
 initialModel : Model
 initialModel =
   { query = "tutorial"
   , results = Dict.empty
+  , errorMessage = Nothing
   }
 
 
@@ -69,12 +116,10 @@ view address model =
     ]
 
 
-viewSearchResults : Address Action -> Dict SearchResult.ResultId SearchResult.Model -> List Html
+viewSearchResults : Address Action -> Dict ResultId SearchResult -> List Html
 viewSearchResults address results =
-  results
-    |> Dict.values
-    |> List.sortBy (.stars >> negate)
-    |> List.map (\_ -> div [] [ text "TODO replace this line with view logic from SearchResult" ])
+  -- TODO sort by star count and render
+  []
 
 
 onInput address wrap =
@@ -85,35 +130,53 @@ defaultValue str =
   property "defaultValue" (Json.Encode.string str)
 
 
+viewSearchResult : Address Action -> SearchResult -> Html
+viewSearchResult address result =
+  li
+    []
+    [ span [ class "star-count" ] [ text (toString result.stars) ]
+    , a
+        [ href ("https://github.com/" ++ result.name), target "_blank" ]
+        [ text result.name ]
+    , button
+        [ class "hide-result", onClick address (DeleteById result.id) ]
+        [ text "X" ]
+    ]
+
+
 type Action
   = Search
   | SetQuery String
-  | DeleteById SearchResult.ResultId
-  | SetResults (List SearchResult.Model)
+  | DeleteById ResultId
+  | SetResults (List SearchResult)
+  | SetErrorMessage (Maybe String)
+  | DoNothing
 
 
-update : Action -> Model -> ( Model, Effects Action )
-update action model =
+update : Address String -> Action -> Model -> ( Model, Effects Action )
+update searchAddress action model =
   case action of
     Search ->
-      ( model, Effects.task (searchFeed model.query) )
+      ( model, searchFeed searchAddress model.query )
 
     SetQuery query ->
       ( { model | query = query }, Effects.none )
 
     SetResults results ->
       let
-        resultsById : Dict SearchResult.ResultId SearchResult.Model
+        resultsById : Dict ResultId SearchResult
         resultsById =
-          results
-            |> List.map (\result -> ( result.id, result ))
-            |> Dict.fromList
+          -- TODO convert results list into a Dict
+          Dict.empty
       in
         ( { model | results = resultsById }, Effects.none )
 
     DeleteById id ->
-      let
-        newModel =
-          { model | results = Dict.remove id model.results }
-      in
-        ( newModel, Effects.none )
+      -- TODO delete the result with the given id
+      ( model, Effects.none )
+
+    SetErrorMessage errorMessage ->
+      ( { model | errorMessage = errorMessage }, Effects.none )
+
+    DoNothing ->
+      ( model, Effects.none )
