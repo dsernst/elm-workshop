@@ -23,26 +23,11 @@ searchFeed query =
         ++ query
         ++ "+language:elm&sort=stars&order=desc"
 
-    -- TODO define task as:
-    --
-    -- task = performAction argument1 argument2 argument3
-    --
-    -- Use these "ingredients" to give `performAction` the arguments it needs:
-    --
-    -- Http.get
-    -- url
-    -- responseDecoder
-    -- HandleSearchResponse
-    -- HandleSearchError
-    --
-    -- Hint: http://package.elm-lang.org/packages/evancz/elm-http/3.0.0/Http#get
     task =
-      "TODO performAction ..."
+      Http.get responseDecoder url
+        |> performAction HandleSearchResponse HandleSearchError
   in
-    -- TODO replace this `Effects.none` with a call to:
-    --
-    -- Effects.task task
-    Effects.none
+    Effects.task task
 
 
 {-| Note: this will be a standard function in the next release of Elm.
